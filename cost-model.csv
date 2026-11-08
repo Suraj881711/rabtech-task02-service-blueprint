@@ -1,0 +1,27 @@
+Category,Item,Unit,Unit Cost (USD),Scenario 1 - Launch (10k req/mo) Qty,Scenario 1 Total (USD),Scenario 2 - Growth (100k req/mo) Qty,Scenario 2 Total (USD),Scenario 3 - Scale (1M req/mo) Qty,Scenario 3 Total (USD),Assumptions
+Compute,ECS Fargate tasks (API) — vCPU,vCPU-hour,0.04048,1460,59.10,2920,118.20,8760,354.60,"730 h/mo; S1: 2 tasks x 1 vCPU; S2: 2 tasks x 2 vCPU; S3: 4 tasks x 3 vCPU avg (autoscaling 3-6 tasks)"
+Compute,ECS Fargate tasks (API) — memory,GB-hour,0.004445,2920,12.98,8760,38.94,35040,155.74,"S1: 2 GB/task; S2: 3 GB/task; S3: 4 GB/task"
+Compute,Application Load Balancer,ALB-hour + LCU blended,22.00,1,22.00,1,22.00,1,22.00,"Flat monthly allowance: $16.20 ALB-hour + LCU allowance growing with traffic, rounded per scenario baseline (LCU extra in S3 included in figure shown for S2/S3 base)"
+Compute,Background worker (email/queue) Fargate,vCPU-hour + GB blended,12.00,1,12.00,1,12.00,1,18.00,"Small always-on worker 0.25 vCPU/0.5 GB; S3 scaled for reconciliation + email volume"
+Compute Subtotal,,,,,106.08,,191.14,,550.34,
+Storage,RDS PostgreSQL Multi-AZ (db.t4g.medium),instance-hour (primary + standby),0.288,730,210.24,730,210.24,730,210.24,"$0.144/hr x 2 (Multi-AZ). Instance class held constant across scenarios; S3 headroom note: move to db.t4g.large (+$210/mo) if CPU > 65% sustained"
+Storage,RDS storage (gp3),GB-month,0.115,50,5.75,100,11.50,250,28.75,"Catalogue + orders growth per scenario"
+Storage,ElastiCache Redis (cache.t4g.small),node-hour,0.034,730,24.82,730,24.82,1460,49.64,"S1/S2: 1 node; S3: 2 nodes (primary + replica for failover, failure path F4)"
+Storage,S3 (product images + static assets),GB-month,0.023,20,0.46,50,1.15,150,3.45,"Standard storage; requests negligible at this scale"
+Storage Subtotal,,,,,241.27,,247.71,,292.08,
+Data Transfer,Data transfer out to internet,GB,0.109,7,0.76,70,7.63,700,76.30,"Avg response 8 KB x requests/mo: 10k->0.08 GB API + images via CloudFront; allowance rounded up for page assets (S1 7 GB, S2 70 GB, S3 700 GB incl. image origin fetches)"
+Data Transfer,CloudFront distribution,requests + transfer blended,1.00,1,1.00,1,4.00,1,25.00,"Serves product images; shields S3 and origin; grows with image traffic"
+Data Transfer,Inter-AZ traffic allowance,GB blended,3.00,1,3.00,1,6.00,1,15.00,"ALB<->Fargate<->RDS cross-AZ traffic allowance"
+Data Transfer Subtotal,,,,,4.76,,17.63,,116.30,
+Logging & Monitoring,CloudWatch Logs ingestion,GB,0.50,15,7.50,60,30.00,300,150.00,"Structured JSON logs; ~1.5 KB/request average retained set after sampling debug logs in S3 scenario"
+Logging & Monitoring,CloudWatch Logs storage (30 days),GB-month,0.03,15,0.45,60,1.80,300,9.00,"30-day retention per data-path rules"
+Logging & Monitoring,CloudWatch metrics + alarms + dashboards,flat monthly,8.00,1,8.00,1,12.00,1,20.00,"Custom EMF metrics for SLOs; ~15 alarms incl. burn-rate alarms from the SLO workbook"
+Logging & Monitoring,Synthetic canary (freshness probe),flat monthly,3.00,1,3.00,1,3.00,1,3.00,"5-min canary write/read probe backing the freshness SLI"
+Logging & Monitoring Subtotal,,,,,18.95,,46.80,,182.00,
+Backup,RDS automated backups (snapshot storage beyond free),GB-month,0.095,50,4.75,100,9.50,250,23.75,"7-day PITR retention; snapshot storage billed beyond instance-storage free allowance"
+Backup,S3 snapshot archive (weekly export),GB-month,0.023,100,2.30,200,4.60,500,11.50,"35-day lifecycle archive of weekly snapshot exports (ADR-002)"
+Backup Subtotal,,,,,7.05,,14.10,,35.25,
+Support,AWS Support plan,plan,see notes,1,29.00,1,100.00,1,118.00,"S1: Developer Support $29 flat. S2: Business Support minimum $100. S3: Business Support modelled ~10% of usage, rounded"
+Support Subtotal,,,,,29.00,,100.00,,118.00,
+TOTAL,Estimated monthly cost (USD),,,,407.11,,617.38,,1293.97,
+TOTAL,Estimated monthly cost (INR at 84 INR/USD),,,,34197,,51860,,108694,"Envelope only: on-demand list prices, excludes GST, Savings Plans/Reserved discounts and free tier"
